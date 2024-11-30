@@ -249,7 +249,6 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
         else if (shape === 'arrow') {
           const angle = Math.atan2(y - startY, x - startX);
           const length = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
-
           // Draw arrow line
           ctx.beginPath();
           ctx.moveTo(startX, startY);
@@ -371,11 +370,33 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
     }
   };
 
+  // const undoLastAction = () => {
+  //   if (history.length > 0) {
+  //     const canvas = canvasRef.current;
+  //     const lastState = history[history.length - 2]; // Get the second last state
+  //     setHistory((prevHistory) => prevHistory.slice(0, -1)); // Remove last state
+  //     if (canvas && lastState) {
+  //       const ctx = canvas.getContext('2d');
+  //       const img = new Image();
+  //       img.src = lastState;
+  //       img.onload = () => {
+  //         if (ctx) {
+  //           ctx.clearRect(0, 0, canvas.width, canvas.height);
+  //           ctx.drawImage(img, 0, 0); // Restore the last state
+  //         }
+  //       };
+  //     }
+  //   }
+  // };
+
+
   const undoLastAction = () => {
     if (history.length > 0) {
       const canvas = canvasRef.current;
       const lastState = history[history.length - 2]; // Get the second last state
-      setHistory((prevHistory) => prevHistory.slice(0, -1)); // Remove last state
+      setHistory((prevHistory) => prevHistory.slice(0, -1)); // Remove last state from history
+      setDrawnShapes((prevShapes) => prevShapes.slice(0, -1)); // Remove the last shape from drawnShapes
+  
       if (canvas && lastState) {
         const ctx = canvas.getContext('2d');
         const img = new Image();
@@ -389,7 +410,7 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       }
     }
   };
-
+  
   const saveEditedImage = () => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
@@ -407,10 +428,10 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
 
         // //displaying 
 
-        const imageElement = new Image();
+        // const imageElement = new Image();
 
-        imageElement.src = finalImage;
-        document.body.appendChild(imageElement);
+        // imageElement.src = finalImage;
+        // document.body.appendChild(imageElement);
 
       }
     }
