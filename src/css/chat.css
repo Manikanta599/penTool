@@ -1,0 +1,170 @@
+/* Button to open/close the chat box */
+.chat-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  /* Chat box container */
+  .chat-box {
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    width: 300px;
+    height: 400px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  /* Chat box header with close button */
+  .chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* Close button in the chat box */
+  .close-button {
+    background-color: transparent;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  /* Chat content area */
+  /* .chat-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+  } */
+  .chat-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    background-color: #f1f1f1;
+  }
+  
+  /* Chat input area container */
+  .chat-input-container {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #eee;
+  }
+  
+  /* Chat input field */
+  .chat-input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    margin-right: 10px;
+  }
+  
+  /* Send button */
+  .send-button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  /* Username prompt container */
+  .username-prompt {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Username input field */
+  .username-input {
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    margin-right: 10px;
+  }
+  
+  /* Username submit button */
+  .username-submit {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+
+  .message-sent {
+    background-color: #d1e7dd;
+    margin: 5px 0;
+    padding: 5px 10px;
+    border-radius: 15px;
+    max-width: 80%;
+    word-wrap: break-word;
+    text-align: left; /* Ensure text within the div is aligned left */
+    align-self: flex-end; /* Align the entire message container to the right */
+  }
+  
+  .message-received {
+    background-color: #f8d7da;
+    margin: 5px 0;
+    padding: 5px 10px;
+    border-radius: 15px;
+    max-width: 80%;
+    word-wrap: break-word;
+    text-align: left; /* Ensure text within the div is aligned left */
+    align-self: flex-start; /* Align the entire message container to the left */
+  }
+  
+  
+  .username {
+    font-weight: bold;
+  }
+  
+  .chat-input-container {
+    display: flex;
+    padding: 10px;
+    background-color: #fff;
+  }
+
+  /* Ensure the chat messages are displayed in a column */
+.chat-content ul {
+  list-style-type: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure each message aligns to its side */
+.chat-content li {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+
