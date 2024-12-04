@@ -1,11 +1,12 @@
-import { MessageOutlined } from '@ant-design/icons';
+import { CommentOutlined, FileImageOutlined, MessageOutlined } from '@ant-design/icons';
 import { Button, Checkbox, Col, Form, message, Modal, Radio, Row, Select, Tooltip } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import axios from 'axios';
 import html2canvas from 'html2canvas';
 import React, { useEffect, useRef, useState } from 'react';
 import '../componts/ticket.css';
-import helpDeskLog from './helpx-logo.png';
+// import '../componts/CustomFloatingButton.css'
+import helpDeskLog from './helpx.png';
 import { SketchPicker } from 'react-color';
 import PenIcon from './icons/penIcon';
 import CircleIcon from './icons/circleIcon';
@@ -74,11 +75,11 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       setIsOpen(true);
 
       const ticketRiser = document.querySelector('.ticket-riser') as HTMLElement;
-      const tooltipElement = document.querySelector('.ant-tooltip') as HTMLElement;
+      // const tooltipElement = document.querySelector('.ant-tooltip') as HTMLElement;
 
       if (ticketRiser) {
         ticketRiser.style.display = 'none';
-        tooltipElement.style.display = 'none';
+        // tooltipElement.style.display = 'none';
       }
 
       // Capture a screenshot of the current screen
@@ -92,7 +93,7 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
 
       if (ticketRiser) {
         ticketRiser.style.display = 'block';
-        tooltipElement.style.display = '';
+        // tooltipElement.style.display = '';
       }
     } else {
       clearCanvas();
@@ -396,7 +397,7 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       const lastState = history[history.length - 2]; // Get the second last state
       setHistory((prevHistory) => prevHistory.slice(0, -1)); // Remove last state from history
       setDrawnShapes((prevShapes) => prevShapes.slice(0, -1)); // Remove the last shape from drawnShapes
-  
+
       if (canvas && lastState) {
         const ctx = canvas.getContext('2d');
         const img = new Image();
@@ -410,7 +411,7 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       }
     }
   };
-  
+
   const saveEditedImage = () => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
@@ -441,22 +442,29 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
   return (
     <div className='ticket-riser'>
       {/* Floating button to open/close the ticket box */}
-      <Tooltip title="Raise Ticket">
-        <Button
-          className="fixed-button" // Apply the class
-          onClick={toggleTicketBox}
-        >
-          <img
-            src={helpDeskLog}
-            alt="Ticket Icon"
-            style={{
-              width: '70px',
-              height: '50px',
-              background: 'transparent',
-            }}
-          />
-        </Button>
-      </Tooltip>
+      {/* <Tooltip title="Raise Ticket"> */}
+      <div className="floating-button-container">
+        {/* Main Floating Button */}
+        <div
+          className="floating-button-main"
+
+          style={{ backgroundImage: `url(${helpDeskLog})` }}
+        ></div>
+
+        {/* Hover Menu */}
+        {/* {isHovered && ( */}
+        <div className="floating-button-menu">
+          <Button className="floating-button-action" onClick={toggleTicketBox}>
+            <FileImageOutlined />
+          </Button>
+          <Button className="floating-button-action" onClick={() => alert('Second Action!')}>
+            <CommentOutlined />
+          </Button>
+        </div>
+
+        {/* )} */}
+      </div>
+      {/* </Tooltip> */}
 
       {isOpen && (
         <div className={`ticket-box ${isOpen ? 'open' : ''}`}>
