@@ -1,0 +1,10 @@
+.react-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    right: 0;
+    background: url('data:image/svg+xml;charset=utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="%23ccc"><path d="M19 18h-1v1h1v-1zm-2 0h-1v1h1v-1zm-2 0h-1v1h1v-1zm4-2h-1v1h1v-1zm-2 0h-1v1h1v-1zm-2 0h-1v1h1v-1zm4-2h-1v1h1v-1zm-2 0h-1v1h1v-1zm-2 0h-1v1h1v-1zm4-2h-1v1h1v-1zm-2 0h-1v1h1v-1zm-2 0h-1v1h1v-1zm4-2h-1v1h1v-1zm-2 0h-1v1h1v-1zm-2 0h-1v1h1v-1z"/></svg>') no-repeat;
+    cursor: se-resize;
+  }
+  

@@ -1,5 +1,5 @@
 import { CommentOutlined, FileImageOutlined, MessageOutlined } from '@ant-design/icons';
-import { Button, Checkbox, Col, Form, message, Modal, Radio, Row, Select, Tooltip } from 'antd';
+import { Button, Checkbox, Col, ColorPicker, Form, message, Modal, Radio, Row, Select, Tooltip } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import axios from 'axios';
 import html2canvas from 'html2canvas';
@@ -16,6 +16,11 @@ import UndoIcon from './icons/undoIcon';
 import EraseIcon from './icons/eraseIcon';
 import SaveIcon from './icons/saveIcon';
 import ColorsIcon from './icons/colorsIcon';
+import DraggableDiv from './dragableTextBox';
+import TextBoxIcon from './icons/textBox';
+import { ResizableBox, ResizeCallbackData } from 'react-resizable';
+import Draggable from 'react-draggable';
+import RedoIcon from './icons/redoIcon';
 
 
 
@@ -33,6 +38,9 @@ interface TicketRaiserProps {
   apiEndpoint: string; // API endpoint for ticket submission
 
 }
+interface DraggableDivProps {
+  id: number;
+}
 
 export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndpoint }) => {
   const [username] = useState('admin');
@@ -41,8 +49,7 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
   const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
-  const [shape, setShape] = useState<'rectangle' | 'circle' | 'arrow' | 'freehand'>('freehand');
-  const [drawnShapes, setDrawnShapes] = useState<any[]>([]); // Store drawn shapes to persist on canvas
+  const [shape, setShape] = useState<'rectangle' | 'circle' | 'arrow' | 'freehand'>('freehand'); //toset
 
   const [ticketDetails, setTicketDetails] = useState<Ticket>({
     username: 'admin',
@@ -55,14 +62,18 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
   const [isDrawing, setIsDrawing] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [editedScreenshot, setEditedScreenshot] = useState<string | null>(null);
-
-
+  const [divs, setDivs] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
+  const [width, setWidth] = useState<number>(150); // Initial width
+  const [height, setHeight] = useState<number>(100); // Initial height
+  const [visible, setVisible] = useState<boolean>(true);
+  const [childColor, setChildColor] = useState<string>("#00ff00");
+  const [redoStack, setRedoStack] = useState<string[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
-  const handleColorChange = (color: any) => {
-    setColor(color.hex); // Update the color state
+  const handleColorChange = (newColor: { toHexString: () => React.SetStateAction<string>; }) => {
+    setColor(newColor.toHexString()); // Update the color state // Update the color state
   };
   const toggleColorPicker = () => {
     setIsColorPickerVisible((prev) => !prev);
@@ -97,7 +108,7 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       }
     } else {
       clearCanvas();
-      setDrawnShapes([]);
+      setHistory([]) //clearing
       setIsOpen(false);
       setTicketDetails((prevDetails) => ({
         ...prevDetails,
@@ -185,6 +196,19 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
   const showModal = () => setIsModalVisible(true);
   const handleCancel = () => setIsModalVisible(false);
 
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      setHistory([]);
+    }
+  };
+
+
+
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -203,6 +227,10 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
         ctx.moveTo(x, y);
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
+
+        // Save the current state for undo/redo
+        const snapshot = canvas.toDataURL();
+        setHistory((prevHistory) => [...prevHistory, snapshot]);
         setIsDrawing(true);
       }
     }
@@ -220,24 +248,68 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
 
-
-      // Handle freehand drawing
       if (shape === 'freehand') {
+        // Draw freehand directly
         ctx.lineTo(x, y);
         ctx.stroke();
-        setDrawnShapes((prevShapes) => {
-          const updated = [...prevShapes];
-          if (updated.length && updated[updated.length - 1].shape === 'freehand') {
-            updated[updated.length - 1].points.push({ x, y });
-          } else {
-            updated.push({ shape: 'freehand', points: [{ x, y }], color });
-          }
-          return updated;
-        });
       } else {
-        // Handle other shapes (circle, rectangle, etc.)
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawnShapes.forEach((shapeData) => drawShape(ctx, shapeData));
+        // For shapes, clear and redraw for preview
+        const img = new Image();
+        img.src = history[history.length - 1];
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+
+          // Draw the shape preview
+          if (shape === 'rectangle') {
+            ctx.strokeRect(startX, startY, x - startX, y - startY);
+          } else if (shape === 'circle') {
+            const radius = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
+            ctx.beginPath();
+            ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+          } else if (shape === 'arrow') {
+            const angle = Math.atan2(y - startY, x - startX);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            const arrowSize = 10;
+            ctx.moveTo(x, y);
+            ctx.lineTo(
+              x - arrowSize * Math.cos(angle - Math.PI / 6),
+              y - arrowSize * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(x, y);
+            ctx.lineTo(
+              x - arrowSize * Math.cos(angle + Math.PI / 6),
+              y - arrowSize * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+          }
+        };
+      }
+    }
+  };
+
+  const stopDrawing = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
+    if (!isDrawing || !canvasRef.current) return;
+
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      if (shape === 'freehand') {
+        // End freehand drawing
+        ctx.closePath();
+      } else {
+        // Finalize the shape
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
 
         if (shape === 'rectangle') {
           ctx.strokeRect(startX, startY, x - startX, y - startY);
@@ -246,167 +318,62 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
           ctx.beginPath();
           ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
           ctx.stroke();
-        }
-        else if (shape === 'arrow') {
+        } else if (shape === 'arrow') {
           const angle = Math.atan2(y - startY, x - startX);
-          const length = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
-          // Draw arrow line
           ctx.beginPath();
           ctx.moveTo(startX, startY);
           ctx.lineTo(x, y);
           ctx.stroke();
 
-          //       // Draw arrowhead
           const arrowSize = 10;
-          ctx.beginPath();
           ctx.moveTo(x, y);
-          ctx.lineTo(x - arrowSize * Math.cos(angle - Math.PI / 6), y - arrowSize * Math.sin(angle - Math.PI / 6));
+          ctx.lineTo(
+            x - arrowSize * Math.cos(angle - Math.PI / 6),
+            y - arrowSize * Math.sin(angle - Math.PI / 6)
+          );
           ctx.moveTo(x, y);
-          ctx.lineTo(x - arrowSize * Math.cos(angle + Math.PI / 6), y - arrowSize * Math.sin(angle + Math.PI / 6));
+          ctx.lineTo(
+            x - arrowSize * Math.cos(angle + Math.PI / 6),
+            y - arrowSize * Math.sin(angle + Math.PI / 6)
+          );
           ctx.stroke();
         }
       }
-    }
 
-  };
-
-  const drawShape = (
-    ctx: CanvasRenderingContext2D,
-    shapeData: { shape: string; startX?: number; startY?: number; endX?: number; endY?: number; points?: { x: number; y: number }[]; color: string }
-  ) => {
-    ctx.strokeStyle = shapeData.color;
-    ctx.lineWidth = 2;
-
-    if (shapeData.shape === 'freehand' && shapeData.points) {
-      ctx.beginPath();
-      shapeData.points.forEach((point, index) => {
-        if (index === 0) {
-          ctx.moveTo(point.x, point.y);
-        } else {
-          ctx.lineTo(point.x, point.y);
-        }
-      });
-      ctx.stroke();
-    } else if (shapeData.shape === 'rectangle') {
-      ctx.strokeRect(shapeData.startX, shapeData.startY, shapeData.endX - shapeData.startX, shapeData.endY - shapeData.startY);
-    } else if (shapeData.shape === 'circle') {
-      const radius = Math.sqrt((shapeData.endX - shapeData.startX) ** 2 + (shapeData.endY - shapeData.startY) ** 2);
-      ctx.beginPath();
-      ctx.arc(shapeData.startX, shapeData.startY, radius, 0, 2 * Math.PI);
-      ctx.stroke();
-    } else if (shapeData.shape === 'arrow') {
-      const angle = Math.atan2(shapeData.endY - shapeData.startY, shapeData.endX - shapeData.startX);
-
-      // Draw line (shaft of arrow)
-      ctx.beginPath();
-      ctx.moveTo(shapeData.startX, shapeData.startY);
-      ctx.lineTo(shapeData.endX, shapeData.endY);
-      ctx.stroke();
-
-      // Draw arrowhead
-      const arrowSize = 10;
-      ctx.beginPath();
-      ctx.moveTo(shapeData.endX, shapeData.endY);
-      ctx.lineTo(
-        shapeData.endX - arrowSize * Math.cos(angle - Math.PI / 6),
-        shapeData.endY - arrowSize * Math.sin(angle - Math.PI / 6)
-      );
-      ctx.moveTo(shapeData.endX, shapeData.endY);
-      ctx.lineTo(
-        shapeData.endX - arrowSize * Math.cos(angle + Math.PI / 6),
-        shapeData.endY - arrowSize * Math.sin(angle + Math.PI / 6)
-      );
-      ctx.stroke();
+      // Save the finalized state
+      const snapshot = canvas.toDataURL();
+      setHistory((prevHistory) => [...prevHistory, snapshot]);
     }
   };
 
-
-  // Stop drawing and save the shape to state
-  const stopDrawing = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
-    if (!isDrawing || !canvasRef.current) return;
-
-    setIsDrawing(false);
-    setStartX(0);
-    setStartY(0);
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-
-      // Save the new shape
-      if (shape === 'freehand') {
-        // For freehand, store all points collected during drawing
-        setDrawnShapes((prev) => [
-          ...prev,
-          { shape, points: [...(prev[prev.length - 1]?.points || []), { x, y }], color }, // Save the full points array for freehand
-        ]);
-      } else {
-        // For other shapes (rectangle, circle, etc.), save the start and end coordinates
-        setDrawnShapes((prev) => [
-          ...prev,
-          { shape, startX, startY, endX: x, endY: y, color },
-        ]);
-      }
-
-    }
-
-    if (canvas) {
-      const url = canvas.toDataURL('image/png');
-      setHistory((prevHistory) => [...prevHistory, url]);
-    }
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      setDrawnShapes([]);
-      setHistory([]);
-    }
-  };
-
-  // const undoLastAction = () => {
-  //   if (history.length > 0) {
-  //     const canvas = canvasRef.current;
-  //     const lastState = history[history.length - 2]; // Get the second last state
-  //     setHistory((prevHistory) => prevHistory.slice(0, -1)); // Remove last state
-  //     if (canvas && lastState) {
-  //       const ctx = canvas.getContext('2d');
-  //       const img = new Image();
-  //       img.src = lastState;
-  //       img.onload = () => {
-  //         if (ctx) {
-  //           ctx.clearRect(0, 0, canvas.width, canvas.height);
-  //           ctx.drawImage(img, 0, 0); // Restore the last state
-  //         }
-  //       };
-  //     }
-  //   }
-  // };
 
 
   const undoLastAction = () => {
-    if (history.length > 0) {
-      const canvas = canvasRef.current;
-      const lastState = history[history.length - 2]; // Get the second last state
-      setHistory((prevHistory) => prevHistory.slice(0, -1)); // Remove last state from history
-      setDrawnShapes((prevShapes) => prevShapes.slice(0, -1)); // Remove the last shape from drawnShapes
+    if (history.length > 1) {
+      const newRedo = history.pop(); // Remove last snapshot
+      setRedoStack((prev) => [newRedo!, ...prev]);
+      redraw(history[history.length - 1]); // Redraw the previous state
+    }
+  };
 
-      if (canvas && lastState) {
-        const ctx = canvas.getContext('2d');
+  const redoAction = () => {
+    if (redoStack.length > 0) {
+      const restored = redoStack.shift(); // Restore first redo state
+      setHistory((prev) => [...prev, restored!]);
+      redraw(restored!);
+    }
+  };
+
+  const redraw = (snapshot: string) => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
         const img = new Image();
-        img.src = lastState;
+        img.src = snapshot;
         img.onload = () => {
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0); // Restore the last state
-          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
         };
       }
     }
@@ -420,24 +387,82 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
       const ctx = mergedCanvas.getContext('2d');
       mergedCanvas.width = image.width;
       mergedCanvas.height = image.height;
-
+  
       if (ctx) {
         ctx.drawImage(image, 0, 0); // Draw the original image
-        ctx.drawImage(canvas, 0, 0); // Overlay the canvas edits
+        ctx.drawImage(canvas, 0, 0); // Overlay the canvas edits 
+  
+        // Draw text boxes onto the canvas
+        divs.forEach((div) => {
+          const element = document.getElementById(`draggable-${div.id}`);
+          if (!element) {
+            console.error(`Element with id draggable-${div.id} not found`);
+            return; // Skip this iteration if the element is not found
+          }
+  
+          const input = element.querySelector('input');
+          if (!input) {
+            console.error(`Input field not found in element draggable-${div.id}`);
+            return; // Skip this iteration if the input is not found
+          }
+  
+          const text = input.value; // Get the text content
+          const rect = element.getBoundingClientRect(); // Get position and size
+  
+          // Adjust coordinates relative to canvas
+          const x = rect.left - canvas.offsetLeft;
+          const y = rect.top - canvas.offsetTop;
+  
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#000'; // Text color
+          ctx.fillText(text, x, y + 16); // Draw text on canvas
+        });
+  
         const finalImage = mergedCanvas.toDataURL('image/png');
         setEditedScreenshot(finalImage);
-
-        // //displaying 
-
-        // const imageElement = new Image();
-
-        // imageElement.src = finalImage;
-        // document.body.appendChild(imageElement);
-
+  
+        // Displaying
+        const imageElement = new Image();
+        imageElement.src = finalImage;
+        document.body.appendChild(imageElement);
       }
     }
     setIsModalVisible(false);
   };
+  
+
+  // const handleAddDiv = () => {
+  //   setDivs((prev) => [...prev, { id: prev.length + 1 }]);
+  // };
+
+  // const handleAddDiv = () => {
+  //   setDivs((prev) => [
+  //     ...prev,
+  //     { id: prev.length + 1, text: 'New Text', x: 100, y: 100 }
+  //   ]);
+  // }; 
+
+  const handleAddDiv = () => {
+    setDivs((prev) => {
+      const lastDiv = prev[prev.length - 1]; // Get the last div
+      const offset = 30; // The offset to apply for each new div
+      const maxPosition = 300; // Maximum allowed position (adjust as needed)
+
+      // Calculate new positions with wrapping logic
+      const newX = lastDiv ? (lastDiv.x + offset) % maxPosition : 100;
+      const newY = lastDiv ? (lastDiv.y + offset) % maxPosition : 100;
+
+      return [
+        ...prev,
+        { id: prev.length + 1, text: 'New Text', x: newX, y: newY }
+      ];
+    });
+  };
+
+
+
+
+
 
   return (
     <div className='ticket-riser'>
@@ -450,18 +475,16 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
 
           style={{ backgroundImage: `url(${helpDeskLog})` }}
         ></div>
-
         {/* Hover Menu */}
         {/* {isHovered && ( */}
         <div className="floating-button-menu">
           <Button className="floating-button-action" onClick={toggleTicketBox}>
             <FileImageOutlined />
           </Button>
-          <Button className="floating-button-action" onClick={() => alert('Second Action!')}>
+          <Button className="floating-button-action" onClick={() => message.loading("chatBot will implement soon!", 3)}>
             <CommentOutlined />
           </Button>
         </div>
-
         {/* )} */}
       </div>
       {/* </Tooltip> */}
@@ -474,7 +497,6 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
               &#10005;
             </button>
           </div>
-
           <div className="ticket-content">
             {ticketDetails.screenshot && (
               <div className="screenshot-container">
@@ -487,7 +509,6 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
                 />
               </div>
             )}
-
             <Form layout="vertical" onFinish={handleSubmit}>
               <Form.Item
                 label="Description"
@@ -532,13 +553,12 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
           </div>
         </div>
       )}
-
       <Modal
         title="Screenshot"
         open={isModalVisible}
         onCancel={handleCancel}
         width={800}
-        style={{ maxHeight: '500px', overflow: 'auto' }}
+        style={{ maxHeight: '500px', overflow: "auto", position: "relative", }}
         footer={[
           <div className="modal-footer">
             {/* Action Buttons */}
@@ -546,10 +566,21 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
               <Button
                 key="undo"
                 onClick={undoLastAction}
-                disabled={drawnShapes.length === 0}
+                disabled={history.length === 0}
                 className="footer-button"
               >
                 <UndoIcon />
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Redo Last Action" placement="top" overlayStyle={{ fontSize: '14px' }}>
+              <Button
+                key="undo"
+                onClick={redoAction}
+                disabled={redoStack.length === 0}
+                className="footer-button"
+              >
+                <RedoIcon />
               </Button>
             </Tooltip>
 
@@ -563,7 +594,6 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
                 <EraseIcon />
               </Button>
             </Tooltip>
-
             <Tooltip title="Save Edited Image" placement="top" overlayStyle={{ fontSize: '14px' }}>
               <Button
                 key="save"
@@ -573,18 +603,6 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
                 <SaveIcon />
               </Button>
             </Tooltip>
-
-            {/* Color Picker Button */}
-            <Tooltip title="Pick a Color" placement="top" overlayStyle={{ fontSize: '14px' }}>
-              <div
-                className='color-picker-container'
-                onClick={toggleColorPicker}
-                style={{ backgroundColor: color }}
-              >
-                <ColorsIcon />
-              </div>
-            </Tooltip>
-
             <Tooltip title="Draw Rectangle" placement="top" overlayStyle={{ fontSize: '14px' }}>
               <Button
                 onClick={() => setShape('rectangle')}
@@ -624,18 +642,68 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
                 <PenIcon />
               </Button>
             </Tooltip>
+
+            <Tooltip title="Add TextBox" placement="top" overlayStyle={{ fontSize: '14px' }}>
+              <Button
+                onClick={handleAddDiv}
+                className="footer-button"
+              >
+                <TextBoxIcon />
+              </Button>
+            </Tooltip> 
+
+            {/* Color Picker Button */}
+            <Tooltip title="Pick a Color" placement="top" overlayStyle={{ fontSize: '14px' }}>
+              {/* <ColorPicker
+                defaultValue={color}
+                onChangeComplete={handleColorChange}
+                showText
+                style={{ width: '100%' }}
+              /> */}
+              {/* <Button className="footer-button"> */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    // bottom: '0px',
+                    background: '#f0f0f0',
+                    right: '20%',
+                    zIndex: 2000,
+                    // background: '#fff',
+                    padding: '3px',
+                    // borderRadius: '8px',
+                    // boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                  }}
+                >
+                  {/* <ColorsIcon /> */}
+                  {/* <Button   className="footer-button"> */}
+                  <ColorPicker
+                    showText
+                    
+                    defaultValue={color}
+                    onChangeComplete={handleColorChange}
+                    style={{ width: '100px',fontWeight:'bold'}}
+                  // className="custom-color-picker"
+                  />
+                  {/* </Button> */}
+                </div>
+              {/* </Button> */}
+            </Tooltip>
           </div>
         ]}
       >
-        <div style={{ position: 'relative', width: '100%', height: 'auto' }}>
-          {/* Image Display */}
+        {/* Draggable and Resizable Divs */}
+
+        {/* {divs.map((div) => (
+            <DraggableDiv key={div.id} id={div.id} />
+          ))} */}
+
+        <div style={{ position: 'relative', width: '100%', height: '350px' }}>
           <img
             ref={imageRef}
             src={ticketDetails.screenshot || ''}
             alt="Screenshot"
             style={{ width: '100%', display: 'block' }}
           />
-
           {/* Canvas for Drawing */}
           <canvas
             ref={canvasRef}
@@ -648,6 +716,8 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
               width: '100%',
               height: '100%',
               cursor: 'crosshair',
+              // zIndex: -20,
+
             }}
             onMouseDown={startDrawing}
             onMouseMove={draw}
@@ -655,8 +725,37 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
             onMouseLeave={stopDrawing}
           />
 
+          {/* DraggableDivs on top of the image and canvas */}
+          {divs.map((div) => (
+            <DraggableDiv
+              key={div.id}
+              id={div.id}
+            />
+          ))}
+
+
+          {/* {divs.map((div) => (
+            <div
+              key={div.id}
+              style={{
+                position: 'absolute',
+                left: div.x,
+                top: div.y,
+                padding: '10px',
+                border: '1px solid black',
+                background: '#f0f0f0',
+              }}
+            >
+              {div.text}
+            </div>
+          ))} */}
+
+          {/* <div>
+           
+            {divs.map((id) => createDraggableDiv(id.id))}
+          </div> */}
           {/* Color Picker inside Modal */}
-          {isColorPickerVisible && (
+          {/* {isColorPickerVisible && (
             <div
               style={{
                 position: 'absolute',
@@ -669,22 +768,47 @@ export const TicketRaiser: React.FC<TicketRaiserProps> = ({ appClientId, apiEndp
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               }}
             >
-              {/* Close Button in Top-Right */}
+              Close Button in Top-Right
               <div
                 className="color-picker"
                 onClick={toggleColorPicker}
               >
                 &#10005;
               </div>
-
               <SketchPicker
-
                 color={color}
-
                 onChangeComplete={handleColorChange}
-              />
+              /> 
+
+              <div 
+              
+              >
+
+              </div>
             </div>
-          )}
+          )} */}
+
+
+          {/* <div
+            style={{
+              position: 'absolute',
+              // top: '25px',
+              bottom: '0px',
+              right: '10px',
+              zIndex: 2000,
+              background: '#fff',
+              padding: '10px',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            }}>
+            // {/* Ant Design Color Picker */}
+          {/* <ColorPicker
+              defaultValue={color}
+              onChangeComplete={handleColorChange}
+              showText
+              style={{ width: '100%' }}
+            />
+          </div>  */}
 
         </div>
       </Modal>
